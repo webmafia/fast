@@ -11,6 +11,12 @@ type StringBuffer struct {
 	buf []byte
 }
 
+func NewStringBuffer(cap int) *StringBuffer {
+	return &StringBuffer{
+		buf: make([]byte, 0, cap),
+	}
+}
+
 // String returns the accumulated string.
 func (b *StringBuffer) String() string {
 	return BytesToString(b.buf)
@@ -86,34 +92,3 @@ func (b *StringBuffer) WriteString(s string) (int, error) {
 	b.buf = append(b.buf, s...)
 	return len(s), nil
 }
-
-// WriteFloat64Lossy write float64 to stream with ONLY 6 digits precision although much much faster
-// func (b *StringBuffer) WriteFloat64Lossy(val float64) {
-// 	const prec = 6
-
-// 	if val < 0 {
-// 		b.WriteByte('-')
-// 		val = -val
-// 	}
-
-// 	if val > 0x4ffffff {
-// 		b.WriteFloat64(val, prec)
-// 		return
-// 	}
-
-// 	exp := uint64(1000000) // 6
-// 	lval := uint64(val*float64(exp) + 0.5)
-// 	b.WriteUint(lval / exp)
-// 	fval := lval % exp
-// 	if fval == 0 {
-// 		return
-// 	}
-// 	stream.writeByte('.')
-// 	for p := prec - 1; p > 0 && fval < pow10[p]; p-- {
-// 		stream.writeByte('0')
-// 	}
-// 	stream.WriteUint64(fval)
-// 	for stream.buf[len(stream.buf)-1] == '0' {
-// 		stream.buf = stream.buf[:len(stream.buf)-1]
-// 	}
-// }
