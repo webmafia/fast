@@ -18,12 +18,12 @@ func NewStringBuffer(cap int) *StringBuffer {
 }
 
 // String returns the accumulated string.
-func (b *StringBuffer) String() string {
+func (b StringBuffer) String() string {
 	return BytesToString(b.buf)
 }
 
 // String returns the accumulated string as bytes.
-func (b *StringBuffer) Bytes() []byte {
+func (b StringBuffer) Bytes() []byte {
 	return b.buf
 }
 
