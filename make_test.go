@@ -11,6 +11,12 @@ func ExampleMakeNoZero() {
 	// Output: Length 16, capacity 16
 }
 
+func ExampleMakeNoZeroCap() {
+	b := MakeNoZeroCap(16)
+	fmt.Printf("Length %d, capacity %d", len(b), cap(b))
+	// Output: Length 0, capacity 16
+}
+
 func stdMake(n int) []byte {
 	return make([]byte, n)
 }
@@ -24,5 +30,11 @@ func BenchmarkMake(b *testing.B) {
 func BenchmarkMakeNoZero(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = MakeNoZero(256)
+	}
+}
+
+func BenchmarkMakeNoZeroCap(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = MakeNoZeroCap(256)
 	}
 }
