@@ -1,6 +1,7 @@
 package fast
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -12,7 +13,7 @@ func BenchmarkTimeNow(b *testing.B) {
 }
 
 func BenchmarkClockNow(b *testing.B) {
-	var c Clock
+	c := NewClock(context.Background())
 
 	b.ResetTimer()
 

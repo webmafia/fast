@@ -1,22 +1,21 @@
 package fast
 
 import (
+	"context"
 	"sync/atomic"
 	"time"
 )
 
 type Clock struct {
-	ts     int64
-	closer chan struct{}
+	ts int64
 }
 
-func NewClock() *Clock {
+func NewClock(ctx context.Context) *Clock {
 	c := &Clock{
-		ts:     time.Now().Unix(),
-		closer: make(chan struct{}),
+		ts: time.Now().Unix(),
 	}
 
-	go c.tick()
+	go c.tick(ctx)
 
 	return c
 }
@@ -31,11 +30,7 @@ func (c *Clock) Unix() int64 {
 	return atomic.LoadInt64(&c.ts)
 }
 
-func (c *Clock) Close() {
-	c.closer <- struct{}{}
-}
-
-func (c *Clock) tick() {
+func (c *Clock) tick(ctx context.Context) {
 	ticker := time.NewTicker(time.Second)
 	now := time.Now()
 
@@ -51,7 +46,7 @@ func (c *Clock) tick() {
 
 	for {
 		select {
-		case <-c.closer:
+		case <-ctx.Done():
 			return
 		case ts := <-ticker.C:
 			atomic.StoreInt64(&c.ts, ts.Unix())
