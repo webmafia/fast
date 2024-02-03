@@ -2,6 +2,7 @@
 package fast
 
 import (
+	"encoding/binary"
 	"math"
 )
 
@@ -97,4 +98,12 @@ func (b *BinaryBuffer) WriteFloat32(v float32) {
 // Write float64
 func (b *BinaryBuffer) WriteFloat64(v float64) {
 	b.WriteUint64(math.Float64bits(v))
+}
+
+func (b *BinaryBuffer) WriteVarint(v int64) {
+	b.buf = binary.AppendVarint(b.buf, v)
+}
+
+func (b *BinaryBuffer) WriteUvarint(v uint64) {
+	b.buf = binary.AppendUvarint(b.buf, v)
 }
