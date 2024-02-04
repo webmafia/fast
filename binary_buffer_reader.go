@@ -33,12 +33,14 @@ func (b *BinaryBufferReader) Reset() {
 
 func (b *BinaryBufferReader) Read(dst []byte) (n int, err error) {
 	n = copy(dst, b.b.buf[b.cursor:])
-	b.cursor -= n
+	b.cursor += n
 	return
 }
 
-func (b *BinaryBufferReader) ReadBytes(n int) []byte {
-	return b.b.buf[b.cursor : b.cursor+n]
+func (b *BinaryBufferReader) ReadBytes(n int) (dst []byte) {
+	dst = b.b.buf[b.cursor : b.cursor+n]
+	b.cursor += n
+	return
 }
 
 func (b *BinaryBufferReader) ReadString(n int) string {
