@@ -1,10 +1,15 @@
 package fast
 
+import "fmt"
+
 func (b *StringBuffer) WriteVal(val any) {
 	switch v := val.(type) {
 
 	case StringEncoder:
 		b.WriteEnc(v)
+
+	case fmt.Stringer:
+		b.WriteString(v.String())
 
 	case string:
 		b.WriteString(v)
