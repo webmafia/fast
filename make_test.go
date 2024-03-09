@@ -12,7 +12,7 @@ func ExampleMakeNoZero() {
 }
 
 func ExampleMakeNoZeroCap() {
-	b := MakeNoZeroCap(16)
+	b := MakeNoZeroCap(0, 16)
 	fmt.Printf("Length %d, capacity %d", len(b), cap(b))
 	// Output: Length 0, capacity 16
 }
@@ -35,6 +35,6 @@ func BenchmarkMakeNoZero(b *testing.B) {
 
 func BenchmarkMakeNoZeroCap(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = MakeNoZeroCap(256)
+		_ = MakeNoZeroCap(0, 256)
 	}
 }

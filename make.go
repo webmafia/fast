@@ -5,18 +5,18 @@ import (
 	"unsafe"
 )
 
-// MakeNoZero makes a slice of length and capacity n without zeroing the bytes.
+// MakeNoZero makes a slice of length and capacity l without zeroing the bytes.
 // It is the caller's responsibility to ensure uninitialized bytes
 // do not leak to the end user.
-func MakeNoZero(len int) []byte {
-	return unsafe.Slice((*byte)(mallocgc(uintptr(len), nil, false)), len)
+func MakeNoZero(l int) []byte {
+	return unsafe.Slice((*byte)(mallocgc(uintptr(l), nil, false)), l)
 }
 
-// MakeNoZero makes a slice of length 0 and capacity n without zeroing the bytes.
+// MakeNoZero makes a slice of length l and capacity c without zeroing the bytes.
 // It is the caller's responsibility to ensure uninitialized bytes
 // do not leak to the end user.
-func MakeNoZeroCap(cap int) []byte {
-	return MakeNoZero(cap)[:0]
+func MakeNoZeroCap(l int, c int) []byte {
+	return MakeNoZero(c)[:l]
 }
 
 //go:linkname mallocgc runtime.mallocgc
