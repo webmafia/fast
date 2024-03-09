@@ -10,7 +10,7 @@ import "unsafe"
 //
 //go:nosplit
 //go:nocheckptr
-func noescape(p unsafe.Pointer) unsafe.Pointer {
+func Noescape(p unsafe.Pointer) unsafe.Pointer {
 	x := uintptr(p)
 	return unsafe.Pointer(x ^ 0)
 }
