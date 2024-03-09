@@ -1,3 +1,3 @@
-module github.com/webbmaffian/go-fast
+module github.com/webmafia/fast
 
 go 1.21.3
