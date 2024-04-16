@@ -4,6 +4,8 @@ import (
 	"unicode/utf8"
 )
 
+var _ Writer = (*BinaryBuffer)(nil)
+
 // A BinaryBuffer is used to efficiently build a string using Write methods.
 // It minimizes memory copying. The zero value is ready to use.
 // Do not copy a non-zero BinaryBuffer.
