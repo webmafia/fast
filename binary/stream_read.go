@@ -49,6 +49,19 @@ func (b *StreamReader) Read(dst []byte) (n int, err error) {
 	return b.buf.Read(dst)
 }
 
+func (b *StreamReader) ReadFull(dst []byte) (err error) {
+	var n int
+	l := len(dst)
+
+	for n < l && err == nil {
+		var nn int
+		nn, err = b.buf.Read(dst[n:])
+		n += nn
+	}
+
+	return
+}
+
 // WriteByte appends the byte c to b's buffer.
 // The returned error is always nil.
 func (b *StreamReader) ReadByte() (byte, error) {

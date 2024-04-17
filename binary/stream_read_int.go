@@ -12,19 +12,19 @@ func (b *StreamReader) ReadInt8() int8 {
 
 func (b *StreamReader) ReadInt16() int16 {
 	var v [2]byte
-	_, b.err = b.Read(v[:])
+	b.err = b.ReadFull(v[:])
 	return int16(binary.LittleEndian.Uint16(v[:]))
 }
 
 func (b *StreamReader) ReadInt32() int32 {
 	var v [4]byte
-	_, b.err = b.Read(v[:])
+	b.err = b.ReadFull(v[:])
 	return int32(binary.LittleEndian.Uint32(v[:]))
 }
 
 func (b *StreamReader) ReadInt64() int64 {
 	var v [8]byte
-	_, b.err = b.Read(v[:])
+	b.err = b.ReadFull(v[:])
 	return int64(binary.LittleEndian.Uint64(v[:]))
 }
 
