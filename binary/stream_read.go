@@ -59,6 +59,12 @@ func (b *StreamReader) ReadFull(dst []byte) (err error) {
 		n += nn
 	}
 
+	if n >= l {
+		err = nil
+	} else if n > 0 && err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+
 	return
 }
 
