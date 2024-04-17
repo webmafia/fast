@@ -20,12 +20,12 @@ func NewBufferWriter(cap int) *BufferWriter {
 }
 
 // String returns the accumulated string.
-func (b BufferWriter) String() string {
+func (b *BufferWriter) String() string {
 	return fast.BytesToString(b.buf)
 }
 
 // String returns the accumulated string as bytes.
-func (b BufferWriter) Bytes() []byte {
+func (b *BufferWriter) Bytes() []byte {
 	return b.buf
 }
 

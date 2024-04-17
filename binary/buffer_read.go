@@ -11,8 +11,8 @@ type BufferReader struct {
 	cursor int
 }
 
-func NewBufferReader(buf []byte) BufferReader {
-	return BufferReader{
+func NewBufferReader(buf []byte) *BufferReader {
+	return &BufferReader{
 		buf: buf,
 	}
 }
