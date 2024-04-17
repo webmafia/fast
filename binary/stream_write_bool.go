@@ -1,6 +1,6 @@
-package fast
+package binary
 
-func (b *BinaryBuffer) WriteBool(v bool) {
+func (b StreamWriter) WriteBool(v bool) {
 	if v {
 		b.WriteByte(1)
 	} else {

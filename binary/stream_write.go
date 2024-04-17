@@ -1,77 +1,71 @@
-package fast
+package binary
 
 import (
 	"bufio"
 	"io"
 )
 
-var _ Writer = BinaryStreamWriter{}
+var _ Writer = StreamWriter{}
 
-// A BinaryStream is used to efficiently write binary data to
+// A Stream is used to efficiently write binary data to
 // an io.Writer.
-type BinaryStreamWriter struct {
+type StreamWriter struct {
 	buf *bufio.Writer
 }
 
-func NewBinaryStreamWriter(w io.Writer) BinaryStreamWriter {
-	return BinaryStreamWriter{
+func NewStreamWriter(w io.Writer) StreamWriter {
+	return StreamWriter{
 		buf: bufio.NewWriter(w),
 	}
 }
 
 // Len returns the number of accumulated bytes; b.Len() == len(b.String()).
-func (b BinaryStreamWriter) Len() int {
+func (b StreamWriter) Len() int {
 	return b.buf.Buffered()
 }
 
-// Cap returns the capacity of the BinaryStream's underlying byte slice. It is the
+// Cap returns the capacity of the Stream's underlying byte slice. It is the
 // total space allocated for the string being built and includes any bytes
 // already written.
-func (b BinaryStreamWriter) Cap() int {
+func (b StreamWriter) Cap() int {
 	return b.buf.Size()
 }
 
-// Reset resets the BinaryStream to be empty.
-func (b BinaryStreamWriter) Reset(w io.Writer) {
+// Reset resets the Stream to be empty.
+func (b StreamWriter) Reset(w io.Writer) {
 	b.buf.Reset(w)
 }
 
 // Write appends the contents of p to b's buffer.
 // Write always returns len(p), nil.
-func (b BinaryStreamWriter) Write(p []byte) (int, error) {
+func (b StreamWriter) Write(p []byte) (int, error) {
 	return b.buf.Write(p)
 }
 
 // WriteByte appends the byte c to b's buffer.
 // The returned error is always nil.
-func (b BinaryStreamWriter) WriteByte(c byte) error {
+func (b StreamWriter) WriteByte(c byte) error {
 	return b.buf.WriteByte(c)
-}
-
-// WriteRune appends the UTF-8 encoding of Unicode code point r to b's buffer.
-// It returns the length of r and a nil error.
-func (b BinaryStreamWriter) WriteRune(r rune) (int, error) {
-	return b.buf.WriteRune(r)
 }
 
 // WriteString appends the contents of s to b's buffer.
 // It returns the length of s and a nil error.
-func (b BinaryStreamWriter) WriteString(s string) (int, error) {
+func (b StreamWriter) WriteString(s string) (int, error) {
 	return b.buf.WriteString(s)
 }
 
-func (b BinaryStreamWriter) Flush() error {
+func (b StreamWriter) Flush() error {
 	return b.buf.Flush()
 }
 
-func (b BinaryStreamWriter) ReadFrom(r io.Reader) (n int64, err error) {
+func (b StreamWriter) ReadFrom(r io.Reader) (n int64, err error) {
 	return b.buf.ReadFrom(r)
 }
 
-func (b BinaryStreamWriter) WriteVal(val any) {
+func (b StreamWriter) WriteVal(val any) {
 	switch v := val.(type) {
 
-	case BinaryEncoder:
+	case Encoder:
 		b.WriteEnc(v)
 
 	case string:
@@ -123,6 +117,6 @@ func (b BinaryStreamWriter) WriteVal(val any) {
 }
 
 // Write a type that implements StringEncoder
-func (b BinaryStreamWriter) WriteEnc(v BinaryEncoder) {
-	v.BinaryEncode(b)
+func (b StreamWriter) WriteEnc(v Encoder) {
+	v.Encode(b)
 }

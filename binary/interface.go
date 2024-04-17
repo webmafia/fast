@@ -1,11 +1,10 @@
-package fast
+package binary
 
 import "io"
 
 type Reader interface {
 	io.Reader
 	io.ByteReader
-	io.RuneReader
 
 	Len() int
 	Cap() int
@@ -34,7 +33,6 @@ type Writer interface {
 
 	Len() int
 	Cap() int
-	WriteRune(r rune) (int, error)
 	WriteString(s string) (int, error)
 	WriteUint8(v uint8)
 	WriteInt8(v int8)
@@ -51,10 +49,10 @@ type Writer interface {
 	WriteVarint(v int64)
 	WriteUvarint(v uint64)
 	WriteBool(v bool)
-	WriteEnc(v BinaryEncoder)
+	WriteEnc(v Encoder)
 	WriteVal(val any)
 }
 
-type BinaryEncoder interface {
-	BinaryEncode(w Writer)
+type Encoder interface {
+	Encode(w Writer)
 }
