@@ -2,6 +2,32 @@ package fast
 
 import "io"
 
+type Reader interface {
+	io.Reader
+	io.ByteReader
+	io.RuneReader
+
+	Len() int
+	Cap() int
+	ReadBytes(n int) []byte
+	ReadString(n int) string
+	ReadUint8() uint8
+	ReadInt8() int8
+	ReadUint16() uint16
+	ReadInt16() int16
+	ReadUint32() uint32
+	ReadInt32() int32
+	ReadUint64() uint64
+	ReadInt64() int64
+	ReadInt() int
+	ReadUint() uint
+	ReadFloat32() float32
+	ReadFloat64() float64
+	ReadVarint() int64
+	ReadUvarint() uint64
+	ReadBool() bool
+}
+
 type Writer interface {
 	io.Writer
 	io.ByteWriter

@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"io"
 	"math"
+
+	"github.com/webmafia/fast"
 )
 
 var _ io.Reader = (*BinaryBufferReader)(nil)
@@ -44,7 +46,7 @@ func (b *BinaryBufferReader) ReadBytes(n int) (dst []byte) {
 }
 
 func (b *BinaryBufferReader) ReadString(n int) string {
-	return BytesToString(b.ReadBytes(n))
+	return fast.BytesToString(b.ReadBytes(n))
 }
 
 func (b *BinaryBufferReader) ReadBool() bool {

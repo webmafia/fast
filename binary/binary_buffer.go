@@ -2,6 +2,8 @@ package fast
 
 import (
 	"unicode/utf8"
+
+	"github.com/webmafia/fast"
 )
 
 var _ Writer = (*BinaryBuffer)(nil)
@@ -21,7 +23,7 @@ func NewBinaryBuffer(cap int) *BinaryBuffer {
 
 // String returns the accumulated string.
 func (b BinaryBuffer) String() string {
-	return BytesToString(b.buf)
+	return fast.BytesToString(b.buf)
 }
 
 // String returns the accumulated string as bytes.
@@ -49,7 +51,7 @@ func (b *BinaryBuffer) Reset() {
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
 func (b *BinaryBuffer) grow(n int) {
-	buf := MakeNoZero(2*cap(b.buf) + n)[:len(b.buf)]
+	buf := fast.MakeNoZero(2*cap(b.buf) + n)[:len(b.buf)]
 	copy(buf, b.buf)
 	b.buf = buf
 }
