@@ -6,11 +6,11 @@ import (
 )
 
 // Write float32
-func (b *BufferWriter) WriteFloat32(v float32) {
-	b.WriteUint32(math.Float32bits(v))
+func (b *BufferWriter) WriteFloat32(v float32) error {
+	return b.WriteUint32(math.Float32bits(v))
 }
 
 // Write float64
-func (b *BufferWriter) WriteFloat64(v float64) {
-	b.WriteUint64(math.Float64bits(v))
+func (b *BufferWriter) WriteFloat64(v float64) error {
+	return b.WriteUint64(math.Float64bits(v))
 }

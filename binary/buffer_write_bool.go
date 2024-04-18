@@ -1,9 +1,9 @@
 package binary
 
-func (b *BufferWriter) WriteBool(v bool) {
+func (b *BufferWriter) WriteBool(v bool) error {
 	if v {
-		b.WriteByte(1)
-	} else {
-		b.WriteByte(0)
+		return b.WriteByte(1)
 	}
+
+	return b.WriteByte(0)
 }

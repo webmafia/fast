@@ -57,13 +57,16 @@ func (b *BufferWriter) grow(n int) {
 // Grow grows b's capacity, if necessary, to guarantee space for
 // another n bytes. After Grow(n), at least n bytes can be written to b
 // without another allocation. If n is negative, Grow panics.
-func (b *BufferWriter) Grow(n int) {
+func (b *BufferWriter) Grow(n int) error {
 	if n < 0 {
-		panic("fast.Buffer.Grow: negative count")
+		return ErrNegativeCount
 	}
+
 	if cap(b.buf)-len(b.buf) < n {
 		b.grow(n)
 	}
+
+	return nil
 }
 
 // Write appends the contents of p to b's buffer.
@@ -88,60 +91,64 @@ func (b *BufferWriter) WriteString(s string) (int, error) {
 }
 
 // Write a type that implements StringEncoder
-func (b *BufferWriter) WriteEnc(v Encoder) {
-	v.Encode(b)
+func (b *BufferWriter) WriteEnc(v Encoder) error {
+	return v.Encode(b)
 }
 
-func (b *BufferWriter) WriteVal(val any) {
+func (b *BufferWriter) WriteVal(val any) error {
 	switch v := val.(type) {
 
 	case Encoder:
-		b.WriteEnc(v)
+		return b.WriteEnc(v)
 
 	case string:
-		b.WriteString(v)
+		_, err := b.WriteString(v)
+		return err
 
 	case []byte:
-		b.Write(v)
+		_, err := b.Write(v)
+		return err
 
 	case int:
-		b.WriteInt(v)
+		return b.WriteInt(v)
 
 	case int8:
-		b.WriteInt8(v)
+		return b.WriteInt8(v)
 
 	case int16:
-		b.WriteInt16(v)
+		return b.WriteInt16(v)
 
 	case int32:
-		b.WriteInt32(v)
+		return b.WriteInt32(v)
 
 	case int64:
-		b.WriteInt64(v)
+		return b.WriteInt64(v)
 
 	case uint:
-		b.WriteUint(v)
+		return b.WriteUint(v)
 
 	case uint8:
-		b.WriteUint8(v)
+		return b.WriteUint8(v)
 
 	case uint16:
-		b.WriteUint16(v)
+		return b.WriteUint16(v)
 
 	case uint32:
-		b.WriteUint32(v)
+		return b.WriteUint32(v)
 
 	case uint64:
-		b.WriteUint64(v)
+		return b.WriteUint64(v)
 
 	case float32:
-		b.WriteFloat32(v)
+		return b.WriteFloat32(v)
 
 	case float64:
-		b.WriteFloat64(v)
+		return b.WriteFloat64(v)
 
 	case bool:
-		b.WriteBool(v)
+		return b.WriteBool(v)
 
 	}
+
+	return ErrUnknownValue
 }

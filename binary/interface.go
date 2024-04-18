@@ -31,28 +31,26 @@ type Writer interface {
 	io.Writer
 	io.ByteWriter
 
-	Len() int
-	Cap() int
 	WriteString(s string) (int, error)
-	WriteUint8(v uint8)
-	WriteInt8(v int8)
-	WriteUint16(v uint16)
-	WriteInt16(v int16)
-	WriteUint32(v uint32)
-	WriteInt32(v int32)
-	WriteUint64(v uint64)
-	WriteInt64(v int64)
-	WriteInt(v int)
-	WriteUint(v uint)
-	WriteFloat32(v float32)
-	WriteFloat64(v float64)
-	WriteVarint(v int64)
-	WriteUvarint(v uint64)
-	WriteBool(v bool)
-	WriteEnc(v Encoder)
-	WriteVal(val any)
+	WriteUint8(v uint8) error
+	WriteInt8(v int8) error
+	WriteUint16(v uint16) error
+	WriteInt16(v int16) error
+	WriteUint32(v uint32) error
+	WriteInt32(v int32) error
+	WriteUint64(v uint64) error
+	WriteInt64(v int64) error
+	WriteInt(v int) error
+	WriteUint(v uint) error
+	WriteFloat32(v float32) error
+	WriteFloat64(v float64) error
+	WriteVarint(v int64) error
+	WriteUvarint(v uint64) error
+	WriteBool(v bool) error
+	WriteEnc(v Encoder) error
+	WriteVal(val any) error
 }
 
 type Encoder interface {
-	Encode(w Writer)
+	Encode(w Writer) error
 }
