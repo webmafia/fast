@@ -53,7 +53,7 @@ func (w StringWriter) Close() (err error) {
 }
 
 // WriteTo implements io.WriterTo.
-func (w *StringWriter) WriteTo(w2 io.Writer) (int64, error) {
+func (w StringWriter) WriteTo(w2 io.Writer) (int64, error) {
 	n, err := w2.Write(w.buf.buf)
 	return int64(n), err
 }
