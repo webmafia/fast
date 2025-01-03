@@ -4,8 +4,6 @@ import (
 	"math/bits"
 	"sync"
 	"sync/atomic"
-
-	"github.com/webmafia/fast"
 )
 
 const (
@@ -50,9 +48,7 @@ func (p *Pool) Get() *Buffer {
 		size = 64
 	}
 
-	return &Buffer{
-		B: fast.MakeNoZeroCap(0, size),
-	}
+	return NewBuffer(size)
 }
 
 // Put releases byte buffer obtained via Get to the pool.
