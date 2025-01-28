@@ -114,7 +114,8 @@ func (b *Buffer) WriteTo(w io.Writer) (int64, error) {
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
 func (b *Buffer) grow(n int) {
-	buf := fast.MakeNoZero(2*cap(b.B) + n)[:len(b.B)]
+	size := max(minSize, roundPow(len(b.B)+n))
+	buf := fast.MakeNoZero(size)[:len(b.B)]
 	copy(buf, b.B)
 	b.B = buf
 }
