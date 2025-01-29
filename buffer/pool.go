@@ -54,7 +54,7 @@ func (p *Pool) Get() *Buffer {
 //
 // The buffer mustn't be accessed after returning to the pool.
 func (p *Pool) Put(b *Buffer) {
-	idx := index(len(b.B))
+	idx := index(cap(b.B))
 
 	if atomic.AddUint32(&p.calls[idx], 1) > calibrateCallsThreshold {
 		p.calibrate()
