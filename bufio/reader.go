@@ -9,10 +9,8 @@ import (
 )
 
 var (
-	ErrInvalidUnreadByte = errors.New("bufio: invalid use of UnreadByte")
-	ErrInvalidUnreadRune = errors.New("bufio: invalid use of UnreadRune")
-	ErrBufferFull        = errors.New("bufio: buffer full")
-	ErrNegativeCount     = errors.New("bufio: negative count")
+	ErrBufferFull    = errors.New("bufio: buffer full")
+	ErrNegativeCount = errors.New("bufio: negative count")
 )
 
 type Reader struct {
@@ -21,6 +19,7 @@ type Reader struct {
 	r, w    int       // buf read (left) and write (right) positions
 	maxSize int       // buf max size
 	locked  bool      // locked reader might grow, but never slide
+	limited *LimitedReader
 }
 
 // NewReader returns a new [Reader] whose buffer has the default size.
@@ -31,6 +30,10 @@ func NewReader(rd io.Reader, bufMaxSize ...int) *Reader {
 
 	r := &Reader{
 		rd: rd,
+	}
+
+	r.limited = &LimitedReader{
+		r: r,
 	}
 
 	if len(bufMaxSize) > 0 && bufMaxSize[0] > 0 {
@@ -77,7 +80,7 @@ func (b *Reader) reset(r io.Reader) {
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
 func (b *Reader) grow(n int) error {
-	if len(b.buf) == b.maxSize {
+	if b.maxSize != 0 && len(b.buf) == b.maxSize {
 		return ErrBufferFull
 	}
 
