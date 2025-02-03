@@ -19,15 +19,13 @@ func BenchmarkReader(b *testing.B) {
 
 	b.Run("Reset", func(b *testing.B) {
 		for range b.N {
-			r.Reset(data)
-			br.Reset(r)
+			br.ResetBytes(data)
 		}
 	})
 
 	b.Run("ReadSlice", func(b *testing.B) {
 		for range b.N {
-			r.Reset(data)
-			br.Reset(r)
+			br.ResetBytes(data)
 			_, err := br.ReadSlice(1)
 
 			if err != nil {
@@ -42,8 +40,7 @@ func BenchmarkReader(b *testing.B) {
 
 	b.Run("DiscardUntil", func(b *testing.B) {
 		for range b.N {
-			r.Reset(data)
-			br.Reset(r)
+			br.ResetBytes(data)
 			_, err := br.DiscardUntil(1)
 
 			if err != nil {
@@ -58,8 +55,7 @@ func BenchmarkReader(b *testing.B) {
 
 	b.Run("ReadByte", func(b *testing.B) {
 		for range b.N {
-			r.Reset(data)
-			br.Reset(r)
+			br.ResetBytes(data)
 			_, err := br.ReadByte()
 
 			if err != nil {
@@ -75,8 +71,7 @@ func BenchmarkReader(b *testing.B) {
 	for _, size := range dataSizes {
 		b.Run(fmt.Sprintf("Peek_%d", size), func(b *testing.B) {
 			for range b.N {
-				r.Reset(data)
-				br.Reset(r)
+				br.ResetBytes(data)
 				_, err := br.Peek(size)
 
 				if err != nil {
@@ -91,8 +86,7 @@ func BenchmarkReader(b *testing.B) {
 
 		b.Run(fmt.Sprintf("ReadBytes_%d", size), func(b *testing.B) {
 			for range b.N {
-				r.Reset(data)
-				br.Reset(r)
+				br.ResetBytes(data)
 				_, err := br.ReadBytes(size)
 
 				if err != nil {
@@ -107,8 +101,7 @@ func BenchmarkReader(b *testing.B) {
 
 		b.Run(fmt.Sprintf("Discard_%d", size), func(b *testing.B) {
 			for range b.N {
-				r.Reset(data)
-				br.Reset(r)
+				br.ResetBytes(data)
 				_, err := br.Discard(size)
 
 				if err != nil {
@@ -126,8 +119,7 @@ func BenchmarkReader(b *testing.B) {
 			b.ResetTimer()
 
 			for range b.N {
-				r.Reset(data)
-				br.Reset(r)
+				br.ResetBytes(data)
 				_, err := br.Read(dst)
 
 				if err != nil {

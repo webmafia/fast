@@ -61,17 +61,35 @@ func (b *Reader) Size() int {
 	return len(b.buf)
 }
 
-func (b *Reader) Reset(r io.Reader) {
+func (b *Reader) MaxSize() int {
+	return b.maxSize
+}
+
+func (b *Reader) SetMaxSize(n int) {
+	b.maxSize = n
+}
+
+func (b *Reader) ResetBytes(data []byte) {
+	if br, ok := b.rd.(*bytes.Reader); ok {
+		br.Reset(data)
+	} else {
+		b.rd = bytes.NewReader(data)
+	}
+
+	b.Reset()
+}
+
+func (b *Reader) ResetReader(r io.Reader) {
 	// Avoid infinite recursion.
 	if b == r {
 		return
 	}
 
-	b.reset(r)
+	b.rd = r
+	b.Reset()
 }
 
-func (b *Reader) reset(r io.Reader) {
-	b.rd = r
+func (b *Reader) Reset() {
 	b.r = 0
 	b.w = 0
 }
@@ -274,9 +292,14 @@ func (b *Reader) ReadByte() (c byte, err error) {
 		}
 	}
 
-	c = b.buf[b.r]
-	b.r++
-	return c, nil
+	if b.r < len(b.buf) {
+		c = b.buf[b.r]
+		b.r++
+	} else if err == nil {
+		err = io.EOF
+	}
+
+	return
 }
 
 // Buffered returns the number of bytes that can be read from the current buffer.
