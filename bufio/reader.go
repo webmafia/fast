@@ -96,11 +96,7 @@ func (b *Reader) Reset() {
 
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
-func (b *Reader) grow(n int) error {
-	// if b.maxSize != 0 && len(b.buf) == b.maxSize {
-	// 	return ErrBufferFull
-	// }
-
+func (b *Reader) grow(n int) {
 	size := roundPow(b.w + n)
 
 	if b.maxSize > 0 && b.maxSize < size {
@@ -108,7 +104,7 @@ func (b *Reader) grow(n int) error {
 	}
 
 	if size == len(b.buf) {
-		return nil
+		return
 	}
 
 	// Copy to new buffer. Don't bother with already read data - the old slice
@@ -116,7 +112,6 @@ func (b *Reader) grow(n int) error {
 	buf := fast.MakeNoZero(size)
 	b.moveUnreadData(buf)
 	b.buf = buf
-	return nil
 }
 
 func (b *Reader) moveUnreadData(buf []byte) {
@@ -142,9 +137,7 @@ func (b *Reader) worthGrowing() bool {
 func (b *Reader) fill() (err error) {
 	if sizeLeft := len(b.buf) - b.w; sizeLeft < 4096 {
 		if b.worthGrowing() || b.locked {
-			if err = b.grow(4096); err != nil {
-				return
-			}
+			b.grow(4096)
 		} else {
 			b.moveUnreadData(b.buf)
 		}
@@ -178,8 +171,11 @@ func (b *Reader) Peek(n int) (buf []byte, err error) {
 		b.Unlock()
 	}
 
-	buf = b.buf[b.r:min(b.r+n, b.w)]
-	return
+	if avail := b.w - b.r; avail < n {
+		return
+	}
+
+	return b.buf[b.r : b.r+n], nil
 }
 
 func (b *Reader) ReadBytes(n int) (r []byte, err error) {
@@ -282,6 +278,11 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 
 	n = copy(p, b.buf[b.r:b.w])
 	b.r += n
+
+	if err == io.EOF && b.r != b.w {
+		err = nil
+	}
+
 	return
 }
 
@@ -292,14 +293,14 @@ func (b *Reader) ReadByte() (c byte, err error) {
 		}
 	}
 
-	if b.r < len(b.buf) {
-		c = b.buf[b.r]
-		b.r++
-	} else if err == nil {
-		err = io.EOF
+	if avail := b.w - b.r; avail < 1 {
+		return
 	}
 
-	return
+	c = b.buf[b.r]
+	b.r++
+
+	return c, nil
 }
 
 // Buffered returns the number of bytes that can be read from the current buffer.
