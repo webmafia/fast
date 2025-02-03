@@ -1,16 +1,15 @@
 package bufio
 
 import (
+	"bufio"
 	"bytes"
-	"errors"
 	"io"
 
 	"github.com/webmafia/fast"
 )
 
 var (
-	ErrBufferFull    = errors.New("bufio: buffer full")
-	ErrNegativeCount = errors.New("bufio: negative count")
+	ErrBufferFull = bufio.ErrBufferFull
 )
 
 type Reader struct {
@@ -80,14 +79,18 @@ func (b *Reader) reset(r io.Reader) {
 // grow copies the buffer to a new, larger buffer so that there are at least n
 // bytes of capacity beyond len(b.buf).
 func (b *Reader) grow(n int) error {
-	if b.maxSize != 0 && len(b.buf) == b.maxSize {
-		return ErrBufferFull
-	}
+	// if b.maxSize != 0 && len(b.buf) == b.maxSize {
+	// 	return ErrBufferFull
+	// }
 
 	size := roundPow(b.w + n)
 
 	if b.maxSize > 0 && b.maxSize < size {
 		size = b.maxSize
+	}
+
+	if size == len(b.buf) {
+		return nil
 	}
 
 	// Copy to new buffer. Don't bother with already read data - the old slice
@@ -133,6 +136,10 @@ func (b *Reader) fill() (err error) {
 		b.moveUnreadData(b.buf)
 	}
 
+	if b.w >= len(b.buf) {
+		return ErrBufferFull
+	}
+
 	n, err := b.rd.Read(b.buf[b.w:])
 	b.w += n
 
@@ -140,12 +147,12 @@ func (b *Reader) fill() (err error) {
 }
 
 // Peek returns the next n bytes without advancing the reader.
-func (b *Reader) Peek(n int) ([]byte, error) {
+func (b *Reader) Peek(n int) (buf []byte, err error) {
 	locked := b.Lock()
 
 	for b.w-b.r < n {
-		if err := b.fill(); err != nil {
-			return nil, err
+		if err = b.fill(); err != nil {
+			break
 		}
 	}
 
@@ -153,7 +160,8 @@ func (b *Reader) Peek(n int) ([]byte, error) {
 		b.Unlock()
 	}
 
-	return b.buf[b.r : b.r+n], nil
+	buf = b.buf[b.r:min(b.r+n, b.w)]
+	return
 }
 
 func (b *Reader) ReadBytes(n int) (r []byte, err error) {
@@ -192,9 +200,7 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 func (b *Reader) DiscardUntil(c byte) (discarded int, err error) {
 	for {
 		if b.r == b.w {
-			if err = b.fill(); err != nil {
-				return
-			}
+			err = b.fill()
 		}
 
 		idx := bytes.IndexByte(b.buf[b.r:b.w], c)
@@ -207,7 +213,13 @@ func (b *Reader) DiscardUntil(c byte) (discarded int, err error) {
 
 		discarded += (b.w - b.r)
 		b.r += (b.w - b.r)
+
+		if err != nil {
+			break
+		}
 	}
+
+	return
 }
 
 func (b *Reader) ReadSlice(delimiter byte) (slice []byte, err error) {
@@ -216,9 +228,7 @@ func (b *Reader) ReadSlice(delimiter byte) (slice []byte, err error) {
 
 	for {
 		if b.r == b.w {
-			if err = b.fill(); err != nil {
-				break
-			}
+			err = b.fill()
 		}
 
 		idx := bytes.IndexByte(b.buf[b.r:b.w], delimiter)
@@ -229,6 +239,10 @@ func (b *Reader) ReadSlice(delimiter byte) (slice []byte, err error) {
 		}
 
 		b.r = b.w
+
+		if err != nil {
+			break
+		}
 	}
 
 	if !locked {
@@ -256,7 +270,7 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 func (b *Reader) ReadByte() (c byte, err error) {
 	for b.r == b.w {
 		if err = b.fill(); err != nil {
-			return
+			break
 		}
 	}
 
