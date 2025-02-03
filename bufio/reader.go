@@ -8,9 +8,9 @@ import (
 	"github.com/webmafia/fast"
 )
 
-var (
-	ErrBufferFull = bufio.ErrBufferFull
-)
+var ErrBufferFull = bufio.ErrBufferFull
+
+var _ BufioReader = (*Reader)(nil)
 
 type Reader struct {
 	buf     []byte
