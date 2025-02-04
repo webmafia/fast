@@ -16,6 +16,7 @@ type Reader struct {
 	buf     []byte
 	rd      io.Reader // reader provided by the client
 	r, w    int       // buf read (left) and write (right) positions
+	maxUsed int       // stats for how much of the buffer was used
 	maxSize int       // buf max size
 	locked  bool      // locked reader might grow, but never slide
 	limited *LimitedReader
@@ -65,8 +66,20 @@ func (b *Reader) MaxSize() int {
 	return b.maxSize
 }
 
+func (b *Reader) MaxUsed() int {
+	return b.maxUsed
+}
+
 func (b *Reader) SetMaxSize(n int) {
 	b.maxSize = n
+}
+
+func (b *Reader) ResetSize(size int) {
+	if len(b.buf) != size {
+		b.buf = fast.MakeNoZero(size)
+	}
+
+	b.Reset()
 }
 
 func (b *Reader) ResetBytes(data []byte) {
@@ -92,6 +105,8 @@ func (b *Reader) ResetReader(r io.Reader) {
 func (b *Reader) Reset() {
 	b.r = 0
 	b.w = 0
+	b.maxUsed = 0
+	b.locked = false
 }
 
 // grow copies the buffer to a new, larger buffer so that there are at least n
@@ -151,8 +166,13 @@ func (b *Reader) fill() (err error) {
 		return ErrBufferFull
 	}
 
+	if b.rd == nil {
+		panic("b.rd is nil")
+	}
+
 	n, err := b.rd.Read(b.buf[b.w:])
 	b.w += n
+	b.maxUsed = max(b.maxUsed, b.w)
 
 	return
 }
