@@ -13,13 +13,14 @@ var ErrBufferFull = bufio.ErrBufferFull
 var _ BufioReader = (*Reader)(nil)
 
 type Reader struct {
-	buf     []byte
-	rd      io.Reader // reader provided by the client
-	r, w    int       // buf read (left) and write (right) positions
-	maxUsed int       // stats for how much of the buffer was used
-	maxSize int       // buf max size
-	locked  bool      // locked reader might grow, but never slide
-	limited *LimitedReader
+	buf       []byte
+	rd        io.Reader // reader provided by the client
+	r, w      int       // buf read (left) and write (right) positions
+	maxUsed   int       // stats for how much of the buffer was used
+	maxSize   int       // buf max size
+	totalRead int       // number of total read bytes from io.Reader since last reset
+	locked    bool      // locked reader might grow, but never slide
+	limited   *LimitedReader
 }
 
 // NewReader returns a new [Reader] whose buffer has the default size.
@@ -55,6 +56,10 @@ func (b *Reader) Unlock() (l bool) {
 	l = b.locked
 	b.locked = false
 	return
+}
+
+func (b *Reader) TotalRead() int {
+	return b.totalRead
 }
 
 // Size returns the size of the underlying buffer in bytes.
@@ -106,6 +111,7 @@ func (b *Reader) Reset() {
 	b.r = 0
 	b.w = 0
 	b.maxUsed = 0
+	b.totalRead = 0
 	b.locked = false
 }
 
@@ -171,6 +177,7 @@ func (b *Reader) fill() (err error) {
 	}
 
 	n, err := b.rd.Read(b.buf[b.w:])
+	b.totalRead += n
 	b.w += n
 	b.maxUsed = max(b.maxUsed, b.w)
 
