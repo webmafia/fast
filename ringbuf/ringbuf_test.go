@@ -84,7 +84,7 @@ func TestWriteAndRead(t *testing.T) {
 	// Further read should return EOF.
 	n, err = rb.Read(buf)
 	if !errors.Is(err, io.EOF) {
-		t.Fatalf("Read after empty: expected EOF, got err=%v", err)
+		t.Fatalf("Read after empty: expected io.EOF, got err=%v", err)
 	}
 	if n != 0 {
 		t.Fatalf("Read after empty: got %d bytes, want 0", n)
@@ -94,12 +94,10 @@ func TestWriteAndRead(t *testing.T) {
 func TestReadByte(t *testing.T) {
 	var rb RingBuf
 	data := []byte("ABC")
-	// Write data.
 	if n, err := rb.Write(data); err != nil || n != len(data) {
 		t.Fatalf("Write error: n=%d, err=%v", n, err)
 	}
 
-	// Read byte-by-byte.
 	var out []byte
 	for i := 0; i < len(data); i++ {
 		b, err := rb.ReadByte()
@@ -112,7 +110,6 @@ func TestReadByte(t *testing.T) {
 		t.Fatalf("ReadByte: got %q, want %q", out, data)
 	}
 
-	// ReadByte on empty should return EOF.
 	_, err := rb.ReadByte()
 	if !errors.Is(err, io.EOF) {
 		t.Fatalf("ReadByte on empty: expected io.EOF, got %v", err)
@@ -121,12 +118,10 @@ func TestReadByte(t *testing.T) {
 
 func TestPeekContiguous(t *testing.T) {
 	var rb RingBuf
-	data := []byte(strings.Repeat("X", 100)) // 100 bytes
-	// Write data.
+	data := []byte(strings.Repeat("X", 100))
 	if n, err := rb.Write(data); err != nil || n != len(data) {
 		t.Fatalf("Write error: n=%d, err=%v", n, err)
 	}
-	// Peek less than contiguous region.
 	peekLen := 50
 	peek, err := rb.Peek(peekLen)
 	if err != nil {
@@ -138,37 +133,30 @@ func TestPeekContiguous(t *testing.T) {
 	if !bytes.Equal(peek, data[:peekLen]) {
 		t.Fatalf("Peek: got %q, want %q", peek, data[:peekLen])
 	}
-	// Peek does not advance the read pointer.
+	// Ensure Peek does not advance the read pointer.
 	if rb.read != 0 {
 		t.Fatalf("Peek advanced read pointer: got %d, want 0", rb.read)
 	}
 }
 
 func TestPeekWrap(t *testing.T) {
-	// To force a wrap-around in Peek, we manually adjust the read pointer.
 	var rb RingBuf
-	// Fill the buffer with known pattern.
+	// Fill the buffer with a pattern.
 	pattern := []byte(strings.Repeat("A", int(BufferSize)))
 	if n, err := rb.Write(pattern); err != nil || n != int(BufferSize) {
 		t.Fatalf("Write error: n=%d, err=%v", n, err)
 	}
-	// Now simulate that some data has been read so that rb.read is near the end.
-	// For example, set rb.read = BufferSize - 10.
+	// Manually adjust read pointer so that it is near the end.
 	rb.read = BufferSize - 10
-	// And set rb.start accordingly (simulate no locked data).
-	rb.Flush()
-
-	// At this point, unread = rb.write - rb.read = BufferSize - (BufferSize-10) = 10.
-	// Now write additional 20 bytes so that the unread region wraps.
+	// At this point, unread() should be: (BufferSize - (BufferSize-10)) = 10.
+	// Now write extra data so unread becomes 10 + 20 = 30.
 	extra := []byte(strings.Repeat("B", 20))
 	if n, err := rb.Write(extra); err != nil || n != len(extra) {
 		t.Fatalf("Write extra error: n=%d, err=%v", n, err)
 	}
-	// Now unread() should be 10 (from end of pattern) + 20 (from extra) = 30.
 	if rb.unread() != 30 {
 		t.Fatalf("Unread: got %d, want %d", rb.unread(), 30)
 	}
-	// Peek 30 bytes; this should return 10 "A"s followed by 20 "B"s.
 	peek, err := rb.Peek(30)
 	if err != nil {
 		t.Fatalf("Peek error: %v", err)
@@ -194,7 +182,6 @@ func TestFillFrom(t *testing.T) {
 		t.Fatalf("FillFrom: got %d, want %d", n, len(srcStr))
 	}
 
-	// Now read back the data.
 	buf := make([]byte, n)
 	if rn, err := rb.Read(buf); err != nil {
 		t.Fatalf("Read after FillFrom error: %v", err)
@@ -216,7 +203,6 @@ func TestReadFrom(t *testing.T) {
 	if n != int64(BufferSize) {
 		t.Fatalf("ReadFrom: got %d, want %d", n, BufferSize)
 	}
-	// Now read all data from the ring buffer.
 	buf := make([]byte, BufferSize)
 	rn, err := rb.Read(buf)
 	if err != nil && !errors.Is(err, io.EOF) {
@@ -225,7 +211,6 @@ func TestReadFrom(t *testing.T) {
 	if rn != BufferSize {
 		t.Fatalf("Read: got %d, want %d", rn, BufferSize)
 	}
-	// Verify that all bytes are "X".
 	for i, b := range buf {
 		if b != 'X' {
 			t.Fatalf("Byte %d: got %q, want 'X'", i, b)
@@ -235,7 +220,6 @@ func TestReadFrom(t *testing.T) {
 
 func TestWriteError(t *testing.T) {
 	var rb RingBuf
-	// Write BufferSize bytes to fill the ring buffer.
 	data := make([]byte, BufferSize)
 	for i := range data {
 		data[i] = 'Z'
@@ -244,10 +228,9 @@ func TestWriteError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Write error: %v", err)
 	}
-	if n != int(BufferSize) {
+	if n != BufferSize {
 		t.Fatalf("Write: wrote %d bytes, want %d", n, BufferSize)
 	}
-	// Try to write one more byte.
 	n, err = rb.Write([]byte("A"))
 	if err != io.ErrShortBuffer {
 		t.Fatalf("Write extra: expected io.ErrShortBuffer, got %v", err)
