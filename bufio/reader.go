@@ -3,7 +3,9 @@ package bufio
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
+	"strings"
 
 	"github.com/webmafia/fast"
 )
@@ -147,6 +149,7 @@ func (b *Reader) moveUnreadData(buf []byte) {
 }
 
 func (b *Reader) worthMoving() bool {
+	return false
 	return !b.locked && (b.w == b.r || b.r >= 4096 || b.w >= len(b.buf)/2)
 }
 
@@ -333,4 +336,66 @@ func (b *Reader) ReadByte() (c byte, err error) {
 // Buffered returns the number of bytes that can be read from the current buffer.
 func (b *Reader) Buffered() int {
 	return b.w - b.r
+}
+
+// DebugState returns a string with three lines showing a window of winSize bytes from the
+// underlying buffer. The window is chosen so that b.r is as close to the middle of the buffer as possible.
+// Line 1 is a marker line: it prints "__" in the cell corresponding to b.r,
+// and two spaces for all other cells.
+// Line 2 prints each byte as a two-digit hexadecimal number.
+// Line 3 prints each byte as a character if printable, or a dot otherwise.
+func (b *Reader) DebugState(winSize int) string {
+	// Determine the length of the underlying buffer.
+	bufLen := len(b.buf)
+	if bufLen == 0 || winSize <= 0 {
+		return ""
+	}
+	// Adjust winSize if it exceeds the buffer.
+	if winSize > bufLen {
+		winSize = bufLen
+	}
+
+	// Compute the window start such that b.r is roughly in the middle.
+	desiredStart := b.r - winSize/2
+	if desiredStart < 0 {
+		desiredStart = 0
+	}
+	if desiredStart+winSize > bufLen {
+		desiredStart = bufLen - winSize
+	}
+
+	window := b.buf[desiredStart : desiredStart+winSize]
+	// Compute pointer position within the window.
+	pointerPos := b.r - desiredStart
+
+	// Prepare the three lines.
+	markerCells := make([]string, len(window))
+	hexCells := make([]string, len(window))
+	textCells := make([]string, len(window))
+	for i, v := range window {
+		// Line 1: Marker – print "__" at pointer position, "  " elsewhere.
+		if i == pointerPos {
+			markerCells[i] = "__"
+		} else {
+			markerCells[i] = "  "
+		}
+		// Line 2: Two-digit hexadecimal representation.
+		hexCells[i] = fmt.Sprintf("%02X", v)
+
+		// Line 3: Printable character or dot.
+		var ch string
+		if v >= 32 && v < 127 {
+			ch = string(v)
+		} else {
+			ch = "."
+		}
+		textCells[i] = fmt.Sprintf("%-2s", ch)
+	}
+
+	// Join the cells with a space between them.
+	markerLine := strings.Join(markerCells, " ")
+	hexLine := strings.Join(hexCells, " ")
+	textLine := strings.Join(textCells, " ")
+
+	return markerLine + "\n" + hexLine + "\n" + textLine
 }
