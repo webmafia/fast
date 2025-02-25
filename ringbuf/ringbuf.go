@@ -37,6 +37,10 @@ type RingBuf struct {
 	write uint64 // free region: [write, read) cyclically.
 }
 
+func (rb *RingBuf) Reset() {
+	rb.read, rb.write = 0, 0
+}
+
 // unread returns the number of unread bytes.
 func (rb *RingBuf) unread() uint64 {
 	return rb.write - rb.read
