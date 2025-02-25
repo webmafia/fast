@@ -5,6 +5,20 @@ import (
 	"io"
 )
 
+type RingBufferReader interface {
+	Buffered() int
+	Reset(rd io.Reader)
+	ResetBytes(b []byte)
+	Read(p []byte) (n int, err error)
+	ReadByte() (byte, error)
+	Peek(n int) ([]byte, error)
+	ReadBytes(n int) (b []byte, err error)
+	Discard(n int) (discarded int, err error)
+	DiscardUntil(c byte) (discarded int, err error)
+}
+
+var _ RingBufferReader = (*Reader)(nil)
+
 // Reader wraps an io.Reader and uses a RingBuf for buffering.
 type Reader struct {
 	r       io.Reader
@@ -28,15 +42,25 @@ func (r *Reader) Reset(rd io.Reader) {
 	r.ring.Reset()
 }
 
+func (r *Reader) ResetBytes(b []byte) {
+	if br, ok := r.r.(*bytes.Reader); ok {
+		br.Reset(b)
+	} else {
+		r.r = bytes.NewReader(b)
+	}
+
+	r.ring.Reset()
+}
+
 // fill attempts to read from the underlying reader into the ring buffer.
-// It uses ReadFrom and stores any non-EOF error into r.err.
+// It uses FillFrom and stores any non-EOF error into r.err.
 func (r *Reader) fill() {
 	// Only fill if there's free space.
 	if r.ring.free() == 0 || r.err != nil {
 		return
 	}
-	// ReadFrom will fill as much as possible.
-	_, err := r.ring.ReadFrom(r.r)
+	// FillFrom will fill as much as possible.
+	_, err := r.ring.FillFrom(r.r)
 	if err != nil && err != io.EOF {
 		r.err = err
 	}
@@ -97,11 +121,11 @@ func (r *Reader) ReadByte() (byte, error) {
 // Peek returns the next n unread bytes without advancing the read pointer.
 // It refills the ring buffer until at least n bytes are available or an error occurs.
 func (r *Reader) Peek(n int) ([]byte, error) {
-	// Fill until we have at least n bytes or we can’t fill more.
 	for uint64(n) > r.ring.unread() && r.err == nil {
+		before := r.ring.unread()
 		r.fill()
-		// If no more data is coming, break.
-		if r.ring.unread() < uint64(n) {
+		// Only break if fill() didn't add any new bytes.
+		if r.ring.unread() == before {
 			break
 		}
 	}

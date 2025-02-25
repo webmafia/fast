@@ -4,12 +4,22 @@ import (
 	"io"
 )
 
+var _ RingBufferReader = (*LimitedReader)(nil)
+
 // LimitedReader wraps a pointer to a Reader and limits the total number of bytes
 // that can be read. The underlying Reader and the remaining limit are stored in
 // unexported fields.
 type LimitedReader struct {
 	r *Reader // underlying Reader (unexported)
 	n int     // maximum remaining bytes allowed to be read (unexported)
+}
+
+func (r *LimitedReader) Reset(rd io.Reader) {
+	r.r.Reset(rd)
+}
+
+func (r *LimitedReader) ResetBytes(b []byte) {
+	r.r.ResetBytes(b)
 }
 
 // Buffered returns the number of unread bytes currently buffered, capped to the remaining limit.
