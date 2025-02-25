@@ -47,14 +47,14 @@ func (lr *LimitedReader) ReadByte() (byte, error) {
 	return b, err
 }
 
-// Peek returns the next n unread bytes without advancing the read pointer,
-// but no more than the remaining limit.
+// Peek returns the next n unread bytes without advancing the read pointer.
+// If n is greater than the remaining limit, it returns io.EOF.
 func (lr *LimitedReader) Peek(n int) ([]byte, error) {
 	if lr.n <= 0 {
 		return nil, io.EOF
 	}
 	if n > lr.n {
-		n = lr.n
+		return nil, io.EOF
 	}
 	return lr.r.Peek(n)
 }
