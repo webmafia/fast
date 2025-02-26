@@ -21,10 +21,11 @@ var _ RingBufferReader = (*Reader)(nil)
 
 // Reader wraps an io.Reader and uses a RingBuf for buffering.
 type Reader struct {
-	r       io.Reader
-	ring    RingBuf
-	limited *LimitedReader
-	err     error // sticky error from the underlying reader, if any
+	r         io.Reader
+	ring      RingBuf
+	limited   *LimitedReader
+	err       error // sticky error from the underlying reader, if any
+	totalRead int
 }
 
 func NewReader(r io.Reader) *Reader {
@@ -39,6 +40,7 @@ func (r *Reader) Reset(rd io.Reader) {
 	}
 
 	r.r = rd
+	r.totalRead = 0
 	r.ring.Reset()
 }
 
@@ -49,6 +51,7 @@ func (r *Reader) ResetBytes(b []byte) {
 		r.r = bytes.NewReader(b)
 	}
 
+	r.totalRead = 0
 	r.ring.Reset()
 }
 
@@ -60,12 +63,20 @@ func (r *Reader) fill() {
 		return
 	}
 	// FillFrom will fill as much as possible.
-	_, err := r.ring.FillFrom(r.r)
+	n, err := r.ring.FillFrom(r.r)
+
+	// If err == io.EOF, we do not mark it as sticky,
+	// so that the buffered data can still be read.
 	if err != nil && err != io.EOF {
 		r.err = err
 	}
-	// Note: if err == io.EOF, we do not mark it as sticky,
-	// so that the buffered data can still be read.
+
+	r.totalRead += int(n)
+}
+
+// Returns the total number of read bytes from underlying io.Reader since last reset.
+func (r *Reader) TotalRead() int {
+	return r.totalRead
 }
 
 // Buffered returns the number of unread bytes currently buffered.

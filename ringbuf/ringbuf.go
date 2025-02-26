@@ -9,7 +9,7 @@ const (
 	// BufferSize is the logical size of the ring buffer.
 	BufferSize = 4096
 	// SlackSize is reserved for potential slack operations.
-	SlackSize = 2048
+	SlackSize = 4096
 	// TotalSize is the total size of the underlying array.
 	TotalSize = BufferSize + SlackSize
 
