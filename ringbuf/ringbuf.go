@@ -2,7 +2,6 @@ package ringbuf
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"unicode"
@@ -179,24 +178,27 @@ func (rb *RingBuf) ReadByte() (byte, error) {
 // If the requested data is contiguous, it returns a direct slice into rb.buf.
 // If the data wraps around, it copies the wrapped portion into the slack space and returns a contiguous slice.
 func (rb *RingBuf) Peek(n int) (buf []byte, err error) {
+	nn := uint64(n)
+
+	// If the number of peeked bytes exceeds what is available, return EOF.
 	if uint64(n) > rb.unread() {
 		return nil, io.EOF
 	}
 
-	start := int(rb.read & ringMask)
-	contig := int(BufferSize) - start
+	// Calculate the positions within the main buffer.
+	start := rb.read & ringMask
+	end := (rb.read + nn) & ringMask
 
-	if n <= contig {
-		return rb.buf[start : start+n], nil
+	// If contiguous, return the slice.
+	if start < end {
+		return rb.buf[start:end], nil
 	}
 
-	remainder := n - contig
-	if remainder > int(SlackSize) {
-		return nil, errors.New("ringbuf: insufficient slack space for Peek")
-	}
+	// Otherwise, copy the exceeding part to the slack buffer.
+	copy(rb.buf[BufferSize:], rb.buf[:end])
 
-	copy(rb.buf[BufferSize:BufferSize+remainder], rb.buf[:remainder])
-	return rb.buf[start : BufferSize+remainder], nil
+	// Now we have a contiguous slice that spans into the slack buffer - return it.
+	return rb.buf[start : start+nn], nil
 }
 
 func (b *RingBuf) ReadBytes(n int) (r []byte, err error) {
