@@ -180,24 +180,18 @@ func (rb *RingBuf) ReadByte() (byte, error) {
 func (rb *RingBuf) Peek(n int) (buf []byte, err error) {
 	nn := uint64(n)
 
-	// If the number of peeked bytes exceeds what is available, return EOF.
-	if uint64(n) > rb.unread() {
+	// Check that we aren't requesting more bytes than available.
+	if nn > rb.unread() {
 		return nil, io.EOF
 	}
 
-	// Calculate the positions within the main buffer.
 	start := rb.read & ringMask
 	end := (rb.read + nn) & ringMask
 
-	// If contiguous, return the slice.
-	if start < end {
-		return rb.buf[start:end], nil
+	if start > end {
+		copy(rb.buf[BufferSize:], rb.buf[:end])
 	}
 
-	// Otherwise, copy the exceeding part to the slack buffer.
-	copy(rb.buf[BufferSize:], rb.buf[:end])
-
-	// Now we have a contiguous slice that spans into the slack buffer - return it.
 	return rb.buf[start : start+nn], nil
 }
 
@@ -210,15 +204,14 @@ func (b *RingBuf) ReadBytes(n int) (r []byte, err error) {
 func (rb *RingBuf) DebugDump(wr io.Writer) {
 	w := bufio.NewWriter(wr)
 
-	// Calculate the current positions modulo BufferSize.
+	// Compute the current physical positions for read and write within the main buffer.
 	readPos := rb.read & ringMask
 	writePos := rb.write & ringMask
 
-	// Iterate over the logical ring buffer size.
-	for i := uint64(0); i < BufferSize; i++ {
+	// Iterate over the full underlying array (main buffer + slack area).
+	for i := uint64(0); i < TotalSize; i++ {
 		b := rb.buf[i]
-		// Determine the ASCII representation: if the byte is a printable Unicode character,
-		// use it; otherwise use a dot.
+		// Determine ASCII representation: printable characters are shown, others as '.'
 		var ch rune
 		if unicode.IsPrint(rune(b)) {
 			ch = rune(b)
@@ -229,20 +222,23 @@ func (rb *RingBuf) DebugDump(wr io.Writer) {
 		// Build the line with hex and ASCII.
 		line := fmt.Sprintf("%02X %c", b, ch)
 
-		// Append markers if this index is the read and/or write pointer.
-		isRead := (i == readPos)
-		isWrite := (i == writePos)
-		if isRead && isWrite {
-			line += " <- R + W"
-		} else if isRead {
-			line += " <- R"
-		} else if isWrite {
-			line += " <- W"
+		// If we're in the main buffer area, add markers for read and write positions.
+		if i < BufferSize {
+			isRead := (i == readPos)
+			isWrite := (i == writePos)
+			if isRead && isWrite {
+				line += " <- R + W"
+			} else if isRead {
+				line += " <- R"
+			} else if isWrite {
+				line += " <- W"
+			}
+		} else if i == BufferSize {
+			// Mark the beginning of the slack area.
+			line += " <- SLACK BEGIN"
 		}
 
-		// Write the line to the provided writer.
 		fmt.Fprintln(w, line)
 	}
-
 	w.Flush()
 }
