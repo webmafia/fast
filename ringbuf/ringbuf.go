@@ -88,30 +88,23 @@ func (rb *RingBuf) Read(p []byte) (n int, err error) {
 
 // Write implements io.Writer.
 func (rb *RingBuf) Write(p []byte) (n int, err error) {
-	free := rb.free()
+	free := int(rb.free())
+
 	if free == 0 {
 		return 0, io.ErrShortBuffer
 	}
 
-	toWrite := uint64(len(p))
-	if toWrite > free {
-		toWrite = free
-	}
+	n = min(len(p), free)
+	buf := rb.buf[:BufferSize]
 
 	// First part: from rb.write (mod BufferSize) to the end of the logical ring.
 	start := rb.write & ringMask
-	first := BufferSize - start
-	if toWrite < first {
-		first = toWrite
-	}
-	n1 := copy(rb.buf[start:start+first], p)
-	n += n1
+	end := (rb.write + uint64(n)) & ringMask
 
-	// If wrap-around is needed, copy the remainder to the beginning.
-	remaining := int(toWrite) - n1
-	if remaining > 0 {
-		n2 := copy(rb.buf[:remaining], p[n1:])
-		n += n2
+	written := copy(buf[start:], p)
+
+	if written < n {
+		copy(buf[:end], p[written:])
 	}
 
 	// Advance the write pointer.
@@ -142,23 +135,28 @@ func (rb *RingBuf) ReadFrom(r io.Reader) (n int64, err error) {
 
 // FillFrom does one (1) read from an io.Reader into the free buffer.
 func (rb *RingBuf) FillFrom(r io.Reader) (n int64, err error) {
-	free := BufferSize - (rb.write - rb.read)
+	free := rb.free()
+
 	if free == 0 {
 		return 0, io.ErrShortBuffer
 	}
 
-	// Compute the contiguous free region starting from the current write pointer.
-	index := rb.write & ringMask
-	contig := BufferSize - index
-	if free < contig {
-		contig = free
+	buf := rb.buf[:BufferSize]
+	start := rb.write & ringMask
+	end := (rb.write + free) & ringMask
+	buf = buf[start:]
+
+	if start < end {
+		buf = buf[:end]
 	}
 
-	m, err := r.Read(rb.buf[index : index+contig])
+	m, err := r.Read(buf)
+
 	if m > 0 {
 		rb.write += uint64(m)
 		n = int64(m)
 	}
+
 	return n, err
 }
 
@@ -190,6 +188,11 @@ func (rb *RingBuf) Peek(n int) (buf []byte, err error) {
 
 	if start > end {
 		copy(rb.buf[BufferSize:], rb.buf[:end])
+
+		// The bug vanishes if you add these lines:
+		// newSlice := make([]byte, n)
+		// copy(newSlice, rb.buf[start:start+nn])
+		// return newSlice, nil
 	}
 
 	return rb.buf[start : start+nn], nil
