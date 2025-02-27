@@ -1,8 +1,11 @@
 package ringbuf
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
 	"io"
+	"unicode"
 )
 
 const (
@@ -200,4 +203,44 @@ func (b *RingBuf) ReadBytes(n int) (r []byte, err error) {
 	r, err = b.Peek(n)
 	b.read += uint64(len(r))
 	return
+}
+
+func (rb *RingBuf) DebugDump(wr io.Writer) {
+	w := bufio.NewWriter(wr)
+
+	// Calculate the current positions modulo BufferSize.
+	readPos := rb.read & ringMask
+	writePos := rb.write & ringMask
+
+	// Iterate over the logical ring buffer size.
+	for i := uint64(0); i < BufferSize; i++ {
+		b := rb.buf[i]
+		// Determine the ASCII representation: if the byte is a printable Unicode character,
+		// use it; otherwise use a dot.
+		var ch rune
+		if unicode.IsPrint(rune(b)) {
+			ch = rune(b)
+		} else {
+			ch = '.'
+		}
+
+		// Build the line with hex and ASCII.
+		line := fmt.Sprintf("%02X %c", b, ch)
+
+		// Append markers if this index is the read and/or write pointer.
+		isRead := (i == readPos)
+		isWrite := (i == writePos)
+		if isRead && isWrite {
+			line += " <- R + W"
+		} else if isRead {
+			line += " <- R"
+		} else if isWrite {
+			line += " <- W"
+		}
+
+		// Write the line to the provided writer.
+		fmt.Fprintln(w, line)
+	}
+
+	w.Flush()
 }

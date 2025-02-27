@@ -236,3 +236,7 @@ func (r *Reader) LimitReader(n int) *LimitedReader {
 	}
 	return r.limited
 }
+
+func (r *Reader) DebugDump(w io.Writer) {
+	r.ring.DebugDump(w)
+}

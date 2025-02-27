@@ -56,6 +56,16 @@ func Example() {
 	// 0 EOF
 }
 
+// func ExampleRingBuf_DebugDump() {
+// 	var r RingBuf
+
+// 	r.Write([]byte("hello"))
+
+// 	r.DebugDump(os.Stdout)
+
+// 	// Output: TODO
+// }
+
 func TestWriteAndRead(t *testing.T) {
 	var rb RingBuf
 	data := []byte("hello, ringbuf!")
