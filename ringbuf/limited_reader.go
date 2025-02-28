@@ -22,6 +22,14 @@ func (r *LimitedReader) ResetBytes(b []byte) {
 	r.r.ResetBytes(b)
 }
 
+func (r *LimitedReader) SetManualFlush(v bool) {
+	r.r.SetManualFlush(v)
+}
+
+func (r *LimitedReader) Flush() {
+	r.r.Flush()
+}
+
 // Buffered returns the number of unread bytes currently buffered, capped to the remaining limit.
 func (lr *LimitedReader) Buffered() int {
 	buf := lr.r.Buffered()

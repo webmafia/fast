@@ -43,6 +43,10 @@ type RingBuf struct {
 
 func (rb *RingBuf) SetManualFlush(v bool) {
 	rb.manualFlush = v
+
+	if !v {
+		rb.start = rb.read
+	}
 }
 
 func (rb *RingBuf) Reset() {

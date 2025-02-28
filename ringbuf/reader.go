@@ -53,7 +53,7 @@ func (r *Reader) ResetBytes(b []byte) {
 }
 
 func (r *Reader) SetManualFlush(v bool) {
-	r.ring.manualFlush = v
+	r.ring.SetManualFlush(v)
 }
 
 func (r *Reader) Flush() {
