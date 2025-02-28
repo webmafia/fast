@@ -32,15 +32,21 @@ var (
 // The free region is defined as the region from write to read (cyclically).
 type RingBuf struct {
 	// buf is the underlying fixed storage of size TotalSize.
-	buf [TotalSize]byte
+	buf   [TotalSize]byte
+	start uint64 // locked region: [start, read)
 	// read marks the beginning of the unread region.
 	read uint64 // unread region: [read, write)
 	// write marks the end of the unread region.
-	write uint64 // free region: [write, read) cyclically.
+	write       uint64 // free region: [write, read) cyclically.
+	manualFlush bool
+}
+
+func (rb *RingBuf) SetManualFlush(v bool) {
+	rb.manualFlush = v
 }
 
 func (rb *RingBuf) Reset() {
-	rb.read, rb.write = 0, 0
+	rb.start, rb.read, rb.write = 0, 0, 0
 }
 
 // unread returns the number of unread bytes.
@@ -50,7 +56,20 @@ func (rb *RingBuf) unread() uint64 {
 
 // free returns the number of free bytes available.
 func (rb *RingBuf) free() uint64 {
-	return BufferSize - (rb.write - rb.read)
+	return BufferSize - (rb.write - rb.start)
+}
+
+func (rb *RingBuf) advance(n uint64) {
+	rb.read += n
+
+	if !rb.manualFlush {
+		rb.start = rb.read
+	}
+}
+
+// Flushes the read region, so that it can be overwritten.
+func (rb *RingBuf) Flush() {
+	rb.start = rb.read
 }
 
 // Read implements io.Reader.
@@ -82,7 +101,7 @@ func (rb *RingBuf) Read(p []byte) (n int, err error) {
 	}
 
 	// Advance the read pointer.
-	rb.read += uint64(n)
+	rb.advance(uint64(n))
 	return n, nil
 }
 
@@ -168,7 +187,7 @@ func (rb *RingBuf) ReadByte() (byte, error) {
 
 	index := rb.read & ringMask
 	b := rb.buf[index]
-	rb.read++
+	rb.advance(1)
 	return b, nil
 }
 
@@ -188,19 +207,14 @@ func (rb *RingBuf) Peek(n int) (buf []byte, err error) {
 
 	if start > end {
 		copy(rb.buf[BufferSize:], rb.buf[:end])
-
-		// The bug vanishes if you add these lines:
-		// newSlice := make([]byte, n)
-		// copy(newSlice, rb.buf[start:start+nn])
-		// return newSlice, nil
 	}
 
 	return rb.buf[start : start+nn], nil
 }
 
-func (b *RingBuf) ReadBytes(n int) (r []byte, err error) {
-	r, err = b.Peek(n)
-	b.read += uint64(len(r))
+func (rb *RingBuf) ReadBytes(n int) (r []byte, err error) {
+	r, err = rb.Peek(n)
+	rb.advance(uint64(len(r)))
 	return
 }
 

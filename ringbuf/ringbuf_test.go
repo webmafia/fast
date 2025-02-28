@@ -157,7 +157,8 @@ func TestPeekWrap(t *testing.T) {
 		t.Fatalf("Write error: n=%d, err=%v", n, err)
 	}
 	// Manually adjust read pointer so that it is near the end.
-	rb.read = BufferSize - 10
+	_, _ = rb.ReadBytes(BufferSize - 10)
+
 	// At this point, unread() should be: (BufferSize - (BufferSize-10)) = 10.
 	// Now write extra data so unread becomes 10 + 20 = 30.
 	extra := []byte(strings.Repeat("B", 20))
