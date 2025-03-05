@@ -14,6 +14,10 @@ type LimitedReader struct {
 	n int     // maximum remaining bytes allowed to be read (unexported)
 }
 
+func (r *LimitedReader) RingReader() *Reader {
+	return r.r
+}
+
 func (r *LimitedReader) Reset(rd io.Reader) {
 	r.r.Reset(rd)
 }
@@ -28,6 +32,10 @@ func (r *LimitedReader) SetManualFlush(v bool) {
 
 func (r *LimitedReader) Flush() {
 	r.r.Flush()
+}
+
+func (r *LimitedReader) Rewind() {
+	r.r.Rewind()
 }
 
 // Buffered returns the number of unread bytes currently buffered, capped to the remaining limit.

@@ -15,6 +15,7 @@ type RingBufferReader interface {
 	ReadBytes(n int) (b []byte, err error)
 	Discard(n int) (discarded int, err error)
 	DiscardUntil(c byte) (discarded int, err error)
+	RingReader() *Reader
 }
 
 var _ RingBufferReader = (*Reader)(nil)
@@ -31,6 +32,14 @@ func NewReader(r io.Reader) *Reader {
 	return &Reader{
 		r: r,
 	}
+}
+
+func (r *Reader) RingReader() *Reader {
+	return r
+}
+
+func (r *Reader) Reader() io.Reader {
+	return r.r
 }
 
 func (r *Reader) Reset(rd io.Reader) {
@@ -60,11 +69,17 @@ func (r *Reader) Flush() {
 	r.ring.Flush()
 }
 
+func (r *Reader) Rewind() {
+	r.ring.Rewind()
+}
+
 // fill attempts to read from the underlying reader into the ring buffer.
 // It uses FillFrom and stores any non-EOF error into r.err.
 func (r *Reader) fill() {
+	r.err = nil
+
 	// Only fill if there's free space.
-	if r.ring.free() == 0 || r.err != nil {
+	if r.ring.free() == 0 {
 		return
 	}
 	// FillFrom will fill as much as possible.

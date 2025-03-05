@@ -76,6 +76,11 @@ func (rb *RingBuf) Flush() {
 	rb.start = rb.read
 }
 
+// Rewinds the read data back to start.
+func (rb *RingBuf) Rewind() {
+	rb.read = rb.start
+}
+
 // Read implements io.Reader.
 func (rb *RingBuf) Read(p []byte) (n int, err error) {
 	avail := rb.unread()
