@@ -1,172 +1,146 @@
+// file: ringbuf_fuzz_no_rewind_test.go
 package ringbuf
 
 import (
 	"bytes"
-	"io"
+	"math/rand"
 	"testing"
 )
 
-func FuzzReadBytes(f *testing.F) {
-	// Seed the fuzzer with some initial test cases.
-	f.Add("hello world")
-	f.Add("The quick brown fox jumps over the lazy dog")
-	f.Add("1234567890")
+// Operation types (no rewind).
+const (
+	opWrite = iota
+	opRead
+	opReadBytes
+	opToggleManual
+	opFlush
+)
 
-	f.Fuzz(func(t *testing.T, input string) {
-		// Truncate input to BufferSize (4096) if necessary.
-		if len(input) > BufferSize {
-			input = input[:BufferSize]
-		}
+// FuzzRingBufNoRewind exercises the ring buffer without ever calling Rewind.
+func FuzzRingBufNoRewind(f *testing.F) {
+	// Add some seed inputs.
+	f.Add([]byte{})                                  // empty
+	f.Add([]byte("hello"))                           // small
+	f.Add([]byte("some random input for ring"))      // medium
+	f.Add(bytes.Repeat([]byte("X"), 8192))           // large
+	f.Add(bytes.Repeat([]byte("1234567890"), 10000)) // more than BufferSize
 
-		// Create a new RingBuf and reset it.
-		var rb RingBuf
+	f.Fuzz(func(t *testing.T, data []byte) {
+		rng := rand.New(rand.NewSource(int64(len(data)) * 12345))
+		rb := &RingBuf{}
 		rb.Reset()
 
-		// Write the input data to the ring buffer.
-		data := []byte(input)
-		n, err := rb.Write(data)
-		if err != nil {
-			t.Fatalf("Write error: %v", err)
-		}
-		if n != len(data) {
-			t.Fatalf("expected to write %d bytes, wrote %d", len(data), n)
+		// Our oracle to compare reads against.
+		var oracle bytes.Buffer
+
+		// Save slices returned by ReadBytes to confirm they remain intact
+		// until a Flush occurs.
+		var savedRefs []struct {
+			dataRef  []byte
+			snapshot []byte
 		}
 
-		// Read the bytes back in chunks of variable sizes.
-		var result []byte
-		expected := data
-		remaining := len(expected)
+		manualOn := false
+		N := 300 // number of operations
 
-		// To vary the chunk size, we'll use a simple loop where the chunk size
-		// is determined by the remaining bytes. For example, we use modulo arithmetic.
-		for remaining > 0 {
-			// Choose a chunk size between 1 and 10 (or less if remaining is smaller).
-			chunkSize := (remaining % 10) + 1
-			if chunkSize > remaining {
-				chunkSize = remaining
+		for i := 0; i < N; i++ {
+			op := rng.Intn(5) // only 0..4 now
+			switch op {
+			case opWrite:
+				chunkSize := rng.Intn(200) + 1
+				randomChunk := make([]byte, chunkSize)
+				for j := 0; j < chunkSize; j++ {
+					randomChunk[j] = byte(rng.Intn(256))
+				}
+
+				n, err := rb.Write(randomChunk)
+				if n > 0 {
+					oracle.Write(randomChunk[:n])
+				}
+
+				// Check no overwrite of start.
+				if rb.write-rb.start > BufferSize {
+					t.Fatalf("overwrite detected: write=%d start=%d (cap=%d)",
+						rb.write, rb.start, BufferSize)
+				}
+				// Acceptable errors: nil, io.ErrShortBuffer, or EOF.
+				if err != nil && err.Error() != "short buffer" && err.Error() != "EOF" {
+					t.Fatalf("unexpected write error: %v", err)
+				}
+
+			case opRead:
+				beforeStart := rb.start
+				chunkSize := rng.Intn(200) + 1
+				p := make([]byte, chunkSize)
+				n, err := rb.Read(p)
+				afterStart := rb.start
+				p = p[:n]
+
+				if err != nil && err.Error() != "EOF" {
+					t.Fatalf("unexpected read error: %v", err)
+				}
+
+				// Compare with oracle
+				want := oracle.Next(n)
+				if !bytes.Equal(p, want) {
+					t.Fatalf("mismatch in read vs oracle:\n got=%v\nwant=%v", p, want)
+				}
+
+				// If manual flush is on, confirm `start` did NOT move
+				// (it should only move on Flush).
+				if manualOn && afterStart != beforeStart {
+					t.Fatalf("manual flush on, but start moved automatically!\n before=%d after=%d",
+						beforeStart, afterStart)
+				}
+
+			case opReadBytes:
+				beforeStart := rb.start
+				chunkSize := rng.Intn(200) + 1
+				rbData, err := rb.ReadBytes(chunkSize)
+				afterStart := rb.start
+
+				if err != nil && err.Error() != "EOF" {
+					t.Fatalf("unexpected error from ReadBytes: %v", err)
+				}
+
+				if err == nil {
+					// Compare with oracle
+					want := oracle.Next(len(rbData))
+					if !bytes.Equal(rbData, want) {
+						t.Fatalf("readbytes mismatch vs oracle:\n got=%v\nwant=%v", rbData, want)
+					}
+
+					// Save a copy for verifying immutability until Flush
+					copySlice := append([]byte(nil), rbData...)
+					savedRefs = append(savedRefs, struct {
+						dataRef  []byte
+						snapshot []byte
+					}{rbData, copySlice})
+
+					// If manual flush is on, confirm `start` did NOT move
+					if manualOn && afterStart != beforeStart {
+						t.Fatalf("manual flush on, but start moved automatically on ReadBytes!\n before=%d after=%d",
+							beforeStart, afterStart)
+					}
+				}
+
+			case opToggleManual:
+				manualOn = !manualOn
+				rb.SetManualFlush(manualOn)
+
+			case opFlush:
+				rb.Flush()
+				// All old references can become invalid now.
+				savedRefs = nil
 			}
 
-			// Read the next chunk.
-			chunk, err := rb.ReadBytes(chunkSize)
-			if err != nil && err != io.EOF {
-				t.Fatalf("ReadBytes error: %v", err)
+			// Check that data from ReadBytes hasn't changed unless we've flushed.
+			for _, ref := range savedRefs {
+				if !bytes.Equal(ref.dataRef, ref.snapshot) {
+					t.Fatalf("ReadBytes data changed unexpectedly!\n got=%v\nwant=%v",
+						ref.dataRef, ref.snapshot)
+				}
 			}
-
-			// The length of the returned chunk should exactly match the requested length,
-			// unless we have reached the end of the data.
-			if len(chunk) != chunkSize {
-				t.Fatalf("expected chunk of length %d, got %d", chunkSize, len(chunk))
-			}
-
-			result = append(result, chunk...)
-			remaining -= len(chunk)
-		}
-
-		// Compare the complete output with the input data.
-		if !bytes.Equal(result, expected) {
-			t.Fatalf("expected output %q, got %q", expected, result)
-		}
-	})
-}
-
-// padToFullBuffer ensures the returned slice is exactly BufferSize bytes.
-// If src is shorter, it repeats src until BufferSize is reached.
-func padToFullBuffer(src []byte) []byte {
-	buf := make([]byte, BufferSize)
-	for i := 0; i < int(BufferSize); i++ {
-		buf[i] = src[i%len(src)]
-	}
-	return buf
-}
-
-func FuzzReadBytesWrapSlack(f *testing.F) {
-	// Seed fuzzer with some initial test cases.
-	f.Add([]byte("abcdefghijklmnopqrstuvwxyz"), []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), 123, 2000)
-	f.Add([]byte("0123456789"), []byte("9876543210"), 100, 3500)
-	f.Add([]byte("The quick brown fox jumps over the lazy dog"), []byte("!@#$%^&*()"), 2048, 3000)
-
-	f.Fuzz(func(t *testing.T, firstData, secondData []byte, readOffset, readLength int) {
-		// For a valid wrap-around test, both firstData and secondData must be non-empty.
-		if len(firstData) == 0 || len(secondData) == 0 {
-			return
-		}
-		// Ensure firstData fills the logical ring exactly.
-		firstData = padToFullBuffer(firstData)
-
-		// Clamp readOffset to be within 1 and BufferSize-1.
-		if readOffset <= 0 {
-			readOffset = 1
-		} else if readOffset >= BufferSize {
-			readOffset = BufferSize - 1
-		}
-
-		// After writing firstData, the unread region is the full 4096 bytes.
-		// After reading readOffset bytes, the unread region becomes firstData[readOffset:].
-		// That leaves free space equal to readOffset bytes (at the beginning of the ring).
-		freeSpace := readOffset
-
-		// Clamp secondData to freeSpace.
-		if len(secondData) > freeSpace {
-			secondData = secondData[:freeSpace]
-		}
-
-		// The unread region now is:
-		//   - Tail: firstData[readOffset:] (length = BufferSize - readOffset)
-		//   - Head: secondData (length = len(secondData))
-		// Total unread bytes:
-		totalUnread := (BufferSize - readOffset) + len(secondData)
-		if totalUnread == 0 {
-			return
-		}
-
-		// To force the slack branch in Peek, we need to read more than the contiguous tail.
-		tailLen := BufferSize - readOffset
-		if readLength <= tailLen {
-			readLength = tailLen + 1
-		}
-		if readLength > totalUnread {
-			readLength = totalUnread
-		}
-
-		// Initialize the ring buffer.
-		var rb RingBuf
-		rb.Reset()
-
-		// Write the firstData into the ring buffer.
-		n, err := rb.Write(firstData)
-		if err != nil || n != len(firstData) {
-			t.Fatalf("failed writing firstData: err=%v, written=%d, expected=%d", err, n, len(firstData))
-		}
-
-		// Advance the read pointer by reading 'readOffset' bytes.
-		consumed, err := rb.ReadBytes(readOffset)
-		if err != nil || len(consumed) != readOffset {
-			t.Fatalf("failed reading readOffset (%d bytes): err=%v, got %d bytes", readOffset, err, len(consumed))
-		}
-
-		// Write secondData into the ring buffer.
-		n, err = rb.Write(secondData)
-		if err != nil || n != len(secondData) {
-			t.Fatalf("failed writing secondData: err=%v, written=%d, expected=%d", err, n, len(secondData))
-		}
-
-		// Build the expected unread data:
-		//   - Tail of firstData, from readOffset to end.
-		//   - Then secondData.
-		expected := append(append([]byte(nil), firstData[readOffset:]...), secondData...)
-
-		// Now, call ReadBytes to retrieve readLength bytes.
-		result, err := rb.ReadBytes(readLength)
-		if err != nil {
-			t.Fatalf("failed reading readLength (%d bytes): err=%v", readLength, err)
-		}
-		if len(result) != readLength {
-			t.Fatalf("expected %d bytes, got %d", readLength, len(result))
-		}
-
-		// Validate that the returned bytes match the expected bytes.
-		if !bytes.Equal(result, expected[:readLength]) {
-			t.Fatalf("data mismatch:\nexpected: %v\ngot:      %v", expected[:readLength], result)
 		}
 	})
 }
