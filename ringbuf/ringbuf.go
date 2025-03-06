@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strings"
 	"unicode"
 )
 
@@ -231,8 +232,10 @@ func (rb *RingBuf) DebugDump(wr io.Writer) {
 	w := bufio.NewWriter(wr)
 
 	// Compute the current physical positions for read and write within the main buffer.
+	startPos := rb.start & ringMask
 	readPos := rb.read & ringMask
 	writePos := rb.write & ringMask
+	annot := make([]string, 0, 3)
 
 	// Iterate over the full underlying array (main buffer + slack area).
 	for i := uint64(0); i < TotalSize; i++ {
@@ -250,14 +253,22 @@ func (rb *RingBuf) DebugDump(wr io.Writer) {
 
 		// If we're in the main buffer area, add markers for read and write positions.
 		if i < BufferSize {
-			isRead := (i == readPos)
-			isWrite := (i == writePos)
-			if isRead && isWrite {
-				line += " <- R + W"
-			} else if isRead {
-				line += " <- R"
-			} else if isWrite {
-				line += " <- W"
+			annot = annot[:0]
+
+			if i == startPos {
+				annot = append(annot, "S")
+			}
+
+			if i == readPos {
+				annot = append(annot, "R")
+			}
+
+			if i == writePos {
+				annot = append(annot, "W")
+			}
+
+			if len(annot) > 0 {
+				line += " <- " + strings.Join(annot, " + ")
 			}
 		} else if i == BufferSize {
 			// Mark the beginning of the slack area.
