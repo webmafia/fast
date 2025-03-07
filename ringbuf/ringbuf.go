@@ -176,7 +176,7 @@ func (rb *RingBuf) FillFrom(r io.Reader) (n int64, err error) {
 	buf = buf[start:]
 
 	if start < end {
-		buf = buf[:end]
+		buf = buf[:end-start]
 	}
 
 	m, err := r.Read(buf)
@@ -219,6 +219,7 @@ func (rb *RingBuf) Peek(n int) (buf []byte, err error) {
 	start := rb.read & ringMask
 	end := (rb.read + nn) & ringMask
 
+	// If the data wraps around the ring buffer
 	if start > end {
 		copy(rb.buf[BufferSize:], rb.buf[:end])
 	}
