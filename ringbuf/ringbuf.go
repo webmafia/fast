@@ -205,6 +205,10 @@ func (rb *RingBuf) ReadByte() (byte, error) {
 // If the requested data is contiguous, it returns a direct slice into rb.buf.
 // If the data wraps around, it copies the wrapped portion into the slack space and returns a contiguous slice.
 func (rb *RingBuf) Peek(n int) (buf []byte, err error) {
+	if n > BufferSize {
+		return nil, fmt.Errorf("tried to peek %d bytes, which exceeds the limit of %d", n, BufferSize)
+	}
+
 	nn := uint64(n)
 
 	// Check that we aren't requesting more bytes than available.
