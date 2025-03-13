@@ -27,6 +27,10 @@ func NewBuffer(size int) *Buffer {
 	}
 }
 
+func (b *Buffer) Str() StringBuffer {
+	return StringBuffer{B: b}
+}
+
 func (b *Buffer) Len() int {
 	return len(b.B)
 }
