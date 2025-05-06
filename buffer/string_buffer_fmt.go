@@ -69,7 +69,7 @@ func (b StringBuffer) WritefCb(format string, args []any, cb func(b *Buffer, c b
 			return ErrFewArgs
 		}
 
-		if err = cb(b.B, c, *fast.NoescapeVal(&args[argNum-1])); err != nil {
+		if err = cb(b.B, c, fast.Noescape(args[argNum-1])); err != nil {
 			return
 		}
 	}

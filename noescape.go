@@ -10,17 +10,11 @@ import "unsafe"
 //
 //go:nosplit
 //go:nocheckptr
-func Noescape(p unsafe.Pointer) unsafe.Pointer {
-	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
+func NoescapeUnsafe(p unsafe.Pointer) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(p) ^ 0)
 }
 
 //go:inline
-func NoescapeVal[T any](p *T) *T {
-	return (*T)(Noescape(unsafe.Pointer(p)))
-}
-
-//go:inline
-func NoescapeBytes(b []byte) []byte {
-	return *(*[]byte)(Noescape(unsafe.Pointer(&b)))
+func Noescape[T any](p T) T {
+	return *(*T)(NoescapeUnsafe(unsafe.Pointer(&p)))
 }

@@ -30,7 +30,7 @@ func (b *StreamWriter) Reset(w io.Writer) {
 //
 //go:inline
 func (b *StreamWriter) Write(p []byte) (int, error) {
-	return b.w.Write(fast.NoescapeBytes(p))
+	return b.w.Write(fast.Noescape(p))
 }
 
 // WriteByte appends the byte c to b's buffer.
