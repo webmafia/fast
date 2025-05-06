@@ -11,7 +11,8 @@ import "unsafe"
 //go:nosplit
 //go:nocheckptr
 func NoescapeUnsafe(p unsafe.Pointer) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(p) ^ 0)
+	x := uintptr(p)
+	return unsafe.Pointer(x ^ 0)
 }
 
 //go:inline
